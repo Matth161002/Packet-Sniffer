@@ -38,7 +38,7 @@ pip install requests
 
 First, open PowerShell or Command Prompt and navigate to the folder containing the script (resulting log file is automatically saved to this folder):
 
-```powershell
+powershell
 cd C:\Users\YourUsername\Documents\Python   # ← change to your actual path
 
 - Example 1. Capture 500 packets, custom log file
