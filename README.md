@@ -30,7 +30,7 @@ A lightweight, pure-Python packet sniffer that monitors your own outbound intern
 
 ### Python packages
 ```bash
-pip install requests
+"pip install requests"
 
 #### How to Run
 
