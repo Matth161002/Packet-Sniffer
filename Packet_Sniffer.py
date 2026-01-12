@@ -6,12 +6,16 @@ import argparse
 import requests
 import ipaddress
 
+# Global variables for geolocation rate limiting and caching
+last_geo_time = 0.0
+geo_cache = {} # Cache: IP → geo string
 # Mapping protocol numbers to protocol names
 protocol_map = {
     1: 'ICMP',
     6: 'TCP',
     17: 'UDP'
 }
+
 
 # Function to parse IP header from raw packet data
 def parse_ip_header(data):
@@ -68,10 +72,15 @@ def parse_icmp_header(data):
 # Function to resolve IP address to hostname
 def resolve_hostname(ip):
     try:
-        hostname, alias, addresslist = socket.gethostbyaddr(ip)
+        hostname = socket.gethostbyaddr(ip)[0]  # Fixed: spcket → socket
         return hostname
     except socket.herror:
-        return None  # No reverse DNS record
+        return None # No reverse DNS record
+    except socket.gaierror:
+        return None # Invalid IP or DNS issue
+    except Exception as e:
+        print(f"Hostname lookup error for {ip}: {e}") # Optional: log error
+        return None
 
 # Function to resolve Geolocation using ip-api.com
 def geolocate_ip(ip):
@@ -96,6 +105,44 @@ def is_public_ip(ip):
     except ValueError:
         return False
 
+# Function to automatically detect the active network interface IP
+def get_active_ipv4():
+    """Try to detect the real local IP used for outbound internet traffic"""
+    print("Detecting active network interface IP...")
+
+    destinations = [
+        ("8.8.8.8", 80), # Google DNS
+        ("1.1.1.1", 53), # Cloudflare DNS
+        ("208.67.222.222", 53), # OpenDNS
+        ("google.com", 80) # Forces real DNS resolution
+    ]
+
+    for dest, port in destinations:
+        try:
+            s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+            s.settimeout(2.0) # Short timeout to avoid hanging
+            s.connect((dest, port))
+            detected_ip = s.getsockname()[0]
+            s.close()
+
+            # Skip known bad/private/virtual ranges
+            if (detected_ip.startswith("127.") or
+                detected_ip.startswith("169.254.") or
+                detected_ip.startswith("192.168.56.")):
+                print(f"  Skipped Likely virtual IP: {detected_ip}")
+                continue
+
+            print(f"  Success! Using detected IP: {detected_ip}")
+            return detected_ip
+        except Exception as e:
+            print(f"  Failed to test {dest}:{port} → {str(e)}")
+            continue
+
+    # Fallback method if all tests fail
+    fallback = socket.gethostbyname(socket.gethostname())
+    print(f"  All detection attempts failed. Falling back to: {fallback}")
+    return fallback
+
 # Parse command-line arguments (logfile name and packet count)
 def parse_arguments():
     parser = argparse.ArgumentParser(description="Advanced Python Packet Sniffer with Geolocation")
@@ -104,14 +151,17 @@ def parse_arguments():
     return parser.parse_args()
 
 def main():
+    global last_geo_time, geo_cache
+
+    
     # Parse CLI arguments
     args = parse_arguments()
 
-    # Open logfile for appending
-    logfile = open(args.logfile, "a")
+    # Open logfile with line buffering for more reliable writes on Windows
+    logfile = open(args.logfile, "a", buffering=1)
 
     # Get local IP address
-    host = socket.gethostbyname(socket.gethostname())
+    host = get_active_ipv4()
 
     # Create raw socket for packet sniffing
     sniffer = socket.socket(socket.AF_INET, socket.SOCK_RAW, socket.IPPROTO_IP)
@@ -130,7 +180,11 @@ def main():
     try:
         while True:
             # Receive raw packet data
-            raw_data, addr = sniffer.recvfrom(65565)
+            sniffer.settimeout(0.3) # wake up every ~300 ms
+            try:
+               raw_data, addr = sniffer.recvfrom(65565)
+            except socket.timeout:
+               continue # go back to while loop
 
             # Parse IP header
             iph_length, protocol_num, src_addr, dst_addr, ttl = parse_ip_header(raw_data)
@@ -142,8 +196,17 @@ def main():
             # Hostname resolution
             dst_hostname = resolve_hostname(dst_addr)
 
-            # Geolocation resolution
-            dst_geo = geolocate_ip(dst_addr)
+            # Geolocation resolution with rate limiting + caching
+            if dst_addr in geo_cache:
+                dst_geo = geo_cache[dst_addr]
+            else:
+                current_time = time.time()
+                if current_time - last_geo_time >= 2.0: # Max 1 lookup every 2 seconds
+                    dst_geo = geolocate_ip(dst_addr)
+                    geo_cache[dst_addr] = dst_geo
+                    last_geo_time = current_time
+                else:
+                    dst_geo = "Geo rate-limited"
 
             # Build display string with IP, hostname, and geo info
             if dst_hostname:
@@ -157,6 +220,7 @@ def main():
             # Print and log IP packet info
             print(output)
             logfile.write(output + "\n")
+            logfile.flush() # Force write to disk
 
             # If it's a TCP packet, parse TCP header too
             if protocol_num == 6:  # TCP
@@ -169,6 +233,7 @@ def main():
 
                 print(tcp_output)
                 logfile.write(tcp_output + "\n")
+                logfile.flush() # Force write to disk
 
             # If it's a UDP packet, parse UDP header too
             elif protocol_num == 17:  # UDP
@@ -179,6 +244,7 @@ def main():
                 udp_output = f"UDP Segment: {src_addr}:{src_port} -> {dst_addr}:{dst_port} | Length: {length}"
                 print(udp_output)
                 logfile.write(udp_output + "\n")
+                logfile.flush() # Force write to disk
 
             # If it's an ICMP packet, parse ICMP header too
             elif protocol_num == 1:  # ICMP
@@ -189,6 +255,7 @@ def main():
                 icmp_output = f"ICMP Packet: {src_addr} -> {dst_addr} | Type: {icmp_type} Code: {code}"
                 print(icmp_output)
                 logfile.write(icmp_output + "\n")
+                logfile.flush() # Force write to disk
 
             packet_counter += 1
 
@@ -204,6 +271,7 @@ def main():
         # Clean up: disable promiscuous mode on Windows and close logfile
         if os.name == "nt":
             sniffer.ioctl(socket.SIO_RCVALL, socket.RCVALL_OFF)
+        logfile.flush()
         logfile.close()
         print(f"Sniffer stopped. Log saved to {args.logfile}")
 
