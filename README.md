@@ -29,8 +29,8 @@ A lightweight, pure-Python packet sniffer that monitors your own outbound intern
 - Administrator privileges (CMD/Powershell) (needed for raw sockets + promiscuous mode)
 
 ### Python packages
-```bash
-pip install requests```
+bash
+pip install requests
 
 #### How to Run
 
