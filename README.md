@@ -1,51 +1,98 @@
-# Personal Network Traffic Sniffer
+Packet-Sniffer
 
-A lightweight, pure-Python packet sniffer that monitors your own outbound internet traffic with geolocation, hostname resolution, and detailed protocol information.
+A Python network packet sniffer that has evolved into a small network security monitoring application.
 
-**Important**: This tool is designed **exclusively for monitoring your own device's network traffic** on networks you own or have explicit permission to analyze.  
+The project captures IPv4 traffic, parses TCP, UDP and ICMP packets, analyses traffic patterns and displays the results through a desktop GUI.
 
+The main goal is to make network traffic easier to understand and provide some basic indicators of potentially unusual activity.
 
-## Features
+Features
+IPv4 packet capture using raw sockets
+TCP, UDP and ICMP packet parsing
+Live desktop monitoring interface
+Traffic statistics
+Basic security event detection
+Possible port-scan detection
+High-traffic detection
+Reverse DNS lookups
+Optional IP geolocation
+Background network lookups
+Automated tests
+Packet validation and error handling
+GUI
 
-- Automatically detects the correct network interface (avoids VirtualBox/VMware adapters)
-- Captures and parses IP, TCP, UDP, and ICMP packets
-- Shows real-time information:
-  - Source → Destination IP
-  - Resolved hostname (reverse DNS)
-  - Approximate geolocation + ISP (via ip-api.com)
-  - Protocol, ports, sequence/ack numbers (TCP), type/code (ICMP)
-- Smart geolocation:
-  - Rate-limited (1 request every 2 seconds)
-  - Caches results for repeated destinations
-  - Only queries public IPs
-- Saves all captured packets to a timestamped log file
-- Easy to run with command-line options (`--count`, `--logfile`)
-- Works on Windows (requires admin privileges)
+The current interface provides three main views:
 
-## Requirements
+Packets - live captured traffic with repeated traffic grouped together
+Security Events - potentially unusual activity detected during capture
+Statistics - basic information about the traffic being observed
 
-- Python 3.8+
-- Windows (tested on Windows 11)
-- Administrator privileges (CMD/Powershell) (needed for raw sockets + promiscuous mode)
+The capture can be started, stopped and cleared without restarting the application.
 
-### Python packages
-bash
-pip install requests
+Security Events
 
-#### How to Run
+The current detection system looks for simple patterns that may be worth investigating, including:
 
-**Always run as Administrator** (right-click PowerShell/CMD → "Run as administrator").
+High traffic volume detected
+Possible port scanning activity
+Connection to unusual destination ports
 
-First, open PowerShell or Command Prompt and navigate to the folder containing the script (resulting log file is automatically saved to this folder):
+These detections are indicators rather than proof of malicious activity. The detection system is intentionally still fairly basic and will be expanded as the project develops.
 
-powershell
-cd C:\Users\YourUsername\Documents\Python    ← change to your actual path
+Installation
 
-- Example 1. Capture 500 packets, custom log file
-python psniffer.py --count 500 --logfile steam_activity.log
+Clone the repository and install the required dependencies:
 
-- Example 2. Run forever (until Ctrl+C), default log file
-python psniffer.py
+git clone <https://github.com/Matth161002/Packet-Sniffer>
+cd Packet-Sniffer
+pip install -r requirements.txt
 
-- Example 3. Short test (good for first run)
-python psniffer.py --count 100 --logfile quick_test.log
+Raw packet capture on Windows requires administrator privileges.
+
+Usage
+
+Start the desktop application with:
+
+python security_gui.py
+
+The original command-line sniffer can also be run directly:
+
+python Packet_Sniffer.py --count 30
+Testing
+
+Tests are written using pytest.
+
+Run the test suite with:
+
+python -m pytest
+Project Structure
+Packet-Sniffer/
+├── Packet_Sniffer.py
+├── packet_capture.py
+├── network_lookup.py
+├── traffic_analysis.py
+├── security_gui.py
+└── tests/
+Development
+
+The project is still being developed.
+
+The next major step is network flow aggregation, moving the application away from treating every packet as a separate item and towards showing complete connections and flows.
+
+Planned areas include:
+
+Network flow tracking
+Improved traffic detection
+TCP connection analysis
+Filtering and investigation
+Exporting captured data
+Better traffic visualisation
+Responsible Use
+
+Packet-Sniffer is intended for use on networks and systems that you own or have permission to monitor.
+
+See SECURITY.md for further information.
+
+Licence
+
+MIT License.
