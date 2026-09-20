@@ -1,23 +1,20 @@
 import socket
 import time
+import threading
+from concurrent.futures import ThreadPoolExecutor
 
 import requests
 
 
-# Store previously resolved IP addresses to avoid repeating
-# geolocation requests for the same destination.
 geo_cache = {}
-
-# Track the time of the most recent geolocation request so that
-# external API requests are not made too frequently.
 last_geo_time = 0.0
+geo_lock = threading.Lock()
 
 
 def resolve_hostname(ip):
     """Resolve an IP address to a hostname using reverse DNS."""
     try:
-        hostname = socket.gethostbyaddr(ip)[0]
-        return hostname
+        return socket.gethostbyaddr(ip)[0]
     except socket.herror:
         return None
     except socket.gaierror:
@@ -37,9 +34,9 @@ def geolocate_ip(ip):
 
         if response.status_code == 200:
             data = response.json()
-            country = data.get('country', '')
-            city = data.get('city', '')
-            org = data.get('org', '')
+            country = data.get("country", "")
+            city = data.get("city", "")
+            org = data.get("org", "")
 
             return f"{city}, {country} ({org})"
 
@@ -58,15 +55,46 @@ def get_geolocation(ip):
     """Return cached geolocation data or perform a rate-limited lookup."""
     global last_geo_time
 
-    if ip in geo_cache:
-        return geo_cache[ip]
+    with geo_lock:
+        if ip in geo_cache:
+            return geo_cache[ip]
 
-    current_time = time.time()
+        current_time = time.time()
 
-    if current_time - last_geo_time >= 2.0:
-        location = geolocate_ip(ip)
-        geo_cache[ip] = location
+        if current_time - last_geo_time < 2.0:
+            return "Geo rate-limited"
+
         last_geo_time = current_time
-        return location
 
-    return "Geo rate-limited"
+    location = geolocate_ip(ip)
+
+    with geo_lock:
+        geo_cache[ip] = location
+
+    return location
+
+
+class NetworkLookupWorker:
+    """Run network metadata lookups outside the packet capture loop."""
+
+    def __init__(self, max_workers=4):
+        self.executor = ThreadPoolExecutor(max_workers=max_workers)
+
+    def submit(self, ip):
+        """Submit DNS and geolocation lookups for an IP address."""
+        return self.executor.submit(self._lookup, ip)
+
+    def _lookup(self, ip):
+        """Perform all metadata lookups for an IP address."""
+        hostname = get_hostname(ip)
+        geolocation = get_geolocation(ip)
+
+        return {
+            "ip": ip,
+            "hostname": hostname,
+            "geolocation": geolocation
+        }
+
+    def shutdown(self):
+        """Stop the worker threads and wait for active lookups to finish."""
+        self.executor.shutdown(wait=True)
