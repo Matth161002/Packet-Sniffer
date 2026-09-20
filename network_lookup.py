@@ -7,21 +7,38 @@ import requests
 
 
 geo_cache = {}
+hostname_cache = {}
+
 last_geo_time = 0.0
 geo_lock = threading.Lock()
 
 
 def resolve_hostname(ip):
     """Resolve an IP address to a hostname using reverse DNS."""
+    with geo_lock:
+        if ip in hostname_cache:
+            return hostname_cache[ip]
+
     try:
-        return socket.gethostbyaddr(ip)[0]
+        hostname = socket.gethostbyaddr(ip)[0]
+
     except socket.herror:
-        return None
+        hostname = None
+
     except socket.gaierror:
-        return None
-    except Exception as e:
-        print(f"Hostname lookup error for {ip}: {e}")
-        return None
+        hostname = None
+
+    except Exception as error:
+        print(
+            f"Hostname lookup error for {ip}: {error}"
+        )
+
+        hostname = None
+
+    with geo_lock:
+        hostname_cache[ip] = hostname
+
+    return hostname
 
 
 def geolocate_ip(ip):
@@ -34,9 +51,21 @@ def geolocate_ip(ip):
 
         if response.status_code == 200:
             data = response.json()
-            country = data.get("country", "")
-            city = data.get("city", "")
-            org = data.get("org", "")
+
+            country = data.get(
+                "country",
+                ""
+            )
+
+            city = data.get(
+                "city",
+                ""
+            )
+
+            org = data.get(
+                "org",
+                ""
+            )
 
             return f"{city}, {country} ({org})"
 
@@ -47,7 +76,7 @@ def geolocate_ip(ip):
 
 
 def get_hostname(ip):
-    """Return the hostname associated with an IP address."""
+    """Return cached hostname data or perform a reverse DNS lookup."""
     return resolve_hostname(ip)
 
 
@@ -74,37 +103,82 @@ def get_geolocation(ip):
     return location
 
 
+def get_lookup_service_ips():
+    """Return IP addresses currently associated with the geolocation API."""
+    try:
+        addresses = socket.gethostbyname_ex(
+            "ip-api.com"
+        )[2]
+
+        return set(addresses)
+
+    except socket.gaierror:
+        return set()
+
+
 class NetworkLookupWorker:
     """Run network metadata lookups outside the packet capture loop."""
 
     def __init__(self, max_workers=4):
-        self.executor = ThreadPoolExecutor(max_workers=max_workers)
+        self.executor = ThreadPoolExecutor(
+            max_workers=max_workers
+        )
+
         self.in_flight = {}
+        self.completed = {}
+
         self.in_flight_lock = threading.Lock()
 
+        # The packet capture application uses this set to prevent
+        # its own geolocation API traffic from appearing as monitored traffic.
+        self.lookup_service_ips = get_lookup_service_ips()
+
     def submit(self, ip):
-        """Submit a lookup unless one is already running for the IP."""
+        """Return a lookup future while preventing duplicate work."""
         with self.in_flight_lock:
+
+            if ip in self.completed:
+                return self.completed[ip], False
+
             if ip in self.in_flight:
                 return self.in_flight[ip], False
 
-            future = self.executor.submit(self._lookup, ip)
+            future = self.executor.submit(
+                self._lookup,
+                ip
+            )
+
             self.in_flight[ip] = future
 
             future.add_done_callback(
                 lambda completed_future, address=ip:
-                self._remove_in_flight(address)
-        )
+                self._store_result(
+                    address,
+                    completed_future
+                )
+            )
 
-        return future, True
+            return future, True
 
-    def _remove_in_flight(self, ip):
-        """Remove a completed lookup from the in-flight collection."""
+    def _store_result(self, ip, future):
+        """Store a completed lookup and remove it from the active collection."""
+        try:
+            result = future.result()
+
+        except Exception:
+            result = None
+
         with self.in_flight_lock:
-            self.in_flight.pop(ip, None)
+            self.in_flight.pop(
+                ip,
+                None
+            )
+
+            if result is not None:
+                self.completed[ip] = future
 
     def _lookup(self, ip):
-        """Perform all metadata lookups for an IP address."""
+        """Perform hostname and geolocation lookups for an IP address."""
         hostname = get_hostname(ip)
         geolocation = get_geolocation(ip)
 
@@ -115,5 +189,7 @@ class NetworkLookupWorker:
         }
 
     def shutdown(self):
-        """Stop the worker threads and wait for active lookups to finish."""
-        self.executor.shutdown(wait=True)
+        """Stop lookup workers and wait for active lookups to finish."""
+        self.executor.shutdown(
+            wait=True
+        )
