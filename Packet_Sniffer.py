@@ -20,17 +20,30 @@ protocol_map = {
 
 # Function to parse IP header from raw packet data
 def parse_ip_header(data):
-    ip_header = data[0:20]  # IP header is always the first 20 bytes
+    if len(data) < 20:
+        raise ValueError("Packet is too short to contain an IPv4 header")
+
+    ip_header = data[0:20]
     iph = struct.unpack('!BBHHHBBH4s4s', ip_header)
 
     version_ihl = iph[0]
-    version = version_ihl >> 4  # High 4 bits are version
-    ihl = version_ihl & 0xF  # Low 4 bits are Internet Header Length
-    iph_length = ihl * 4  # Calculate actual header length in bytes
+    version = version_ihl >> 4
+    ihl = version_ihl & 0xF
+
+    if version != 4:
+        raise ValueError(f"Unsupported IP version: {version}")
+
+    if ihl < 5:
+        raise ValueError("Invalid IPv4 header length")
+
+    iph_length = ihl * 4
+
+    if len(data) < iph_length:
+        raise ValueError("Packet is shorter than the IPv4 header length")
 
     ttl = iph[5]
     protocol = iph[6]
-    src_addr = socket.inet_ntoa(iph[8])  # Convert 4-byte IP to string
+    src_addr = socket.inet_ntoa(iph[8])
     dst_addr = socket.inet_ntoa(iph[9])
 
     return iph_length, protocol, src_addr, dst_addr, ttl
@@ -38,7 +51,10 @@ def parse_ip_header(data):
 
 # Function to parse TCP header
 def parse_tcp_header(data):
-    tcp_header = data[0:20]  # TCP header
+    if len(data) < 20:
+        raise ValueError("Packet is too short to contain a TCP header")
+
+    tcp_header = data[0:20]
     tcph = struct.unpack('!HHLLBBHHH', tcp_header)
 
     src_port = tcph[0]
@@ -46,13 +62,23 @@ def parse_tcp_header(data):
     sequence = tcph[2]
     acknowledgment = tcph[3]
     offset_reserved = tcph[4]
-    tcp_header_length = (offset_reserved >> 4) * 4  # Header length in bytes
+
+    tcp_header_length = (offset_reserved >> 4) * 4
+
+    if tcp_header_length < 20:
+        raise ValueError("Invalid TCP header length")
+
+    if len(data) < tcp_header_length:
+        raise ValueError("Packet is shorter than the TCP header length")
 
     return src_port, dst_port, sequence, acknowledgment, tcp_header_length
 
 
 # Function to parse UDP header
 def parse_udp_header(data):
+    if len(data) < 8:
+        raise ValueError("Packet is too short to contain a UDP header")
+
     udp_header = data[0:8]
     udph = struct.unpack('!HHHH', udp_header)
 
@@ -61,12 +87,22 @@ def parse_udp_header(data):
     length = udph[2]
     checksum = udph[3]
 
+    if length < 8:
+        raise ValueError("Invalid UDP length")
+
+    if len(data) < length:
+        raise ValueError("Packet is shorter than the UDP length")
+
     return src_port, dst_port, length, checksum
 
 
 # Function to parse ICMP header
 def parse_icmp_header(data):
+    if len(data) < 4:
+        raise ValueError("Packet is too short to contain an ICMP header")
+
     icmph = struct.unpack('!BBH', data[0:4])
+
     icmp_type = icmph[0]
     code = icmph[1]
     checksum = icmph[2]
@@ -76,6 +112,9 @@ def parse_icmp_header(data):
 
 # Function to parse a complete packet and its transport-layer header
 def parse_packet(raw_data):
+    if not raw_data:
+        raise ValueError("Received an empty packet")
+
     iph_length, protocol_num, src_addr, dst_addr, ttl = parse_ip_header(raw_data)
 
     packet = {
@@ -89,7 +128,7 @@ def parse_packet(raw_data):
 
     if protocol_num == 6:  # TCP
         tcp_start = iph_length
-        tcp_data = raw_data[tcp_start:tcp_start + 20]
+        tcp_data = raw_data[tcp_start:]
 
         src_port, dst_port, sequence, acknowledgment, tcp_header_length = parse_tcp_header(tcp_data)
 
@@ -103,7 +142,7 @@ def parse_packet(raw_data):
 
     elif protocol_num == 17:  # UDP
         udp_start = iph_length
-        udp_data = raw_data[udp_start:udp_start + 8]
+        udp_data = raw_data[udp_start:]
 
         src_port, dst_port, length, checksum = parse_udp_header(udp_data)
 
@@ -116,7 +155,7 @@ def parse_packet(raw_data):
 
     elif protocol_num == 1:  # ICMP
         icmp_start = iph_length
-        icmp_data = raw_data[icmp_start:icmp_start + 4]
+        icmp_data = raw_data[icmp_start:]
 
         icmp_type, code, checksum = parse_icmp_header(icmp_data)
 
@@ -184,21 +223,20 @@ def get_active_ipv4():
     print("Detecting active network interface IP...")
 
     destinations = [
-        ("8.8.8.8", 80),  # Google DNS
-        ("1.1.1.1", 53),  # Cloudflare DNS
-        ("208.67.222.222", 53),  # OpenDNS
-        ("google.com", 80)  # Forces real DNS resolution
+        ("8.8.8.8", 80),
+        ("1.1.1.1", 53),
+        ("208.67.222.222", 53),
+        ("google.com", 80)
     ]
 
     for dest, port in destinations:
         try:
             s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-            s.settimeout(2.0)  # Short timeout to avoid hanging
+            s.settimeout(2.0)
             s.connect((dest, port))
             detected_ip = s.getsockname()[0]
             s.close()
 
-            # Skip known bad/private/virtual ranges
             if (
                 detected_ip.startswith("127.")
                 or detected_ip.startswith("169.254.")
@@ -214,7 +252,6 @@ def get_active_ipv4():
             print(f"  Failed to test {dest}:{port} → {str(e)}")
             continue
 
-    # Fallback method if all tests fail
     fallback = socket.gethostbyname(socket.gethostname())
     print(f"  All detection attempts failed. Falling back to: {fallback}")
     return fallback
@@ -277,9 +314,15 @@ def main():
                 continue
 
             # Parse the captured packet
-            packet = parse_packet(raw_data)
+            try:
+                packet = parse_packet(raw_data)
+            except ValueError as e:
+                print(f"Skipping malformed packet: {e}")
+                continue
+            except struct.error as e:
+                print(f"Skipping malformed packet: {e}")
+                continue
 
-            iph_length = packet["ip_header_length"]
             protocol_num = packet["protocol"]
             src_addr = packet["source_ip"]
             dst_addr = packet["destination_ip"]
