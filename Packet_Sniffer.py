@@ -36,7 +36,7 @@ def parse_ip_header(data):
 
 # Function to parse TCP header (only called for TCP packets)
 def parse_tcp_header(data):
-    tcp_header = data[0:20]  # TCP header is at least 20 bytes
+    tcp_header = data[0:20]  # TCP header
     tcph = struct.unpack('!HHLLBBHHH', tcp_header)
 
     src_port = tcph[0]
@@ -72,7 +72,7 @@ def parse_icmp_header(data):
 # Function to resolve IP address to hostname
 def resolve_hostname(ip):
     try:
-        hostname = socket.gethostbyaddr(ip)[0]  # Fixed: spcket → socket
+        hostname = socket.gethostbyaddr(ip)[0]
         return hostname
     except socket.herror:
         return None # No reverse DNS record
@@ -97,7 +97,7 @@ def geolocate_ip(ip):
     except requests.RequestException:
         return "Geo lookup error"
 
-# Function to check if an IP is public (avoid local network spam)
+# Function to check if an IP is public (to avoid local network spam)
 def is_public_ip(ip):
     try:
         ip_obj = ipaddress.ip_address(ip)
