@@ -125,9 +125,13 @@ def parse_packet(raw_data):
     if not raw_data:
         raise ValueError("Packet is empty")
 
-    iph_length, protocol, src_addr, dst_addr, ttl = parse_ip_header(
-        raw_data
-    )
+    (
+        iph_length,
+        protocol,
+        src_addr,
+        dst_addr,
+        ttl
+    ) = parse_ip_header(raw_data)
 
     packet = {
         "ip_header_length": iph_length,
@@ -217,11 +221,15 @@ def get_active_ipv4():
     ]
 
     for address, port in test_addresses:
-        sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        sock = socket.socket(
+            socket.AF_INET,
+            socket.SOCK_DGRAM
+        )
 
         try:
             sock.settimeout(2)
             sock.connect((address, port))
+
             local_ip = sock.getsockname()[0]
 
             if local_ip and not local_ip.startswith("127."):
@@ -250,6 +258,9 @@ def handle_lookup_result(future):
     """Display network metadata when a background lookup finishes."""
     try:
         result = future.result()
+
+        if result is None:
+            return
 
         ip = result["ip"]
         hostname = result["hostname"]
@@ -286,13 +297,18 @@ def main():
     args = parser.parse_args()
 
     lookup_worker = NetworkLookupWorker()
+    packet_count = 0
 
     try:
         active_ip = get_active_ipv4()
 
         print(f"Active IPv4 address: {active_ip}")
 
-        with open(args.logfile, "a", encoding="utf-8") as logfile:
+        with open(
+            args.logfile,
+            "a",
+            encoding="utf-8"
+        ) as logfile:
 
             # Create a raw socket for IPv4 packet capture.
             sniffer = socket.socket(
@@ -318,10 +334,11 @@ def main():
 
             sniffer.settimeout(0.3)
 
-            packet_count = 0
-
             try:
-                while args.count == 0 or packet_count < args.count:
+                while (
+                    args.count == 0
+                    or packet_count < args.count
+                ):
 
                     try:
                         raw_data, _ = sniffer.recvfrom(65535)
@@ -343,6 +360,7 @@ def main():
                         continue
 
                     protocol = packet["protocol"]
+
                     protocol_name = protocol_map.get(
                         protocol,
                         f"Unknown ({protocol})"
@@ -355,10 +373,14 @@ def main():
                     packet_count += 1
 
                     # Submit metadata lookups without blocking packet capture.
-                    lookup_future = lookup_worker.submit(dst_addr)
-                    lookup_future.add_done_callback(
-                        handle_lookup_result
+                    lookup_future, is_new_lookup = lookup_worker.submit(
+                        dst_addr
                     )
+
+                    if is_new_lookup:
+                        lookup_future.add_done_callback(
+                            handle_lookup_result
+                        )
 
                     output = (
                         f"[{timestamp}] "

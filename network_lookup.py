@@ -79,10 +79,29 @@ class NetworkLookupWorker:
 
     def __init__(self, max_workers=4):
         self.executor = ThreadPoolExecutor(max_workers=max_workers)
+        self.in_flight = {}
+        self.in_flight_lock = threading.Lock()
 
     def submit(self, ip):
-        """Submit DNS and geolocation lookups for an IP address."""
-        return self.executor.submit(self._lookup, ip)
+        """Submit a lookup unless one is already running for the IP."""
+        with self.in_flight_lock:
+            if ip in self.in_flight:
+                return self.in_flight[ip], False
+
+            future = self.executor.submit(self._lookup, ip)
+            self.in_flight[ip] = future
+
+            future.add_done_callback(
+                lambda completed_future, address=ip:
+                self._remove_in_flight(address)
+        )
+
+        return future, True
+
+    def _remove_in_flight(self, ip):
+        """Remove a completed lookup from the in-flight collection."""
+        with self.in_flight_lock:
+            self.in_flight.pop(ip, None)
 
     def _lookup(self, ip):
         """Perform all metadata lookups for an IP address."""
