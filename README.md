@@ -43,7 +43,7 @@ Installation
 
 Clone the repository and install the required dependencies:
 
-git clone <https://github.com/Matth161002/Packet-Sniffer>
+git clone <repository-url>
 cd Packet-Sniffer
 pip install -r requirements.txt
 
