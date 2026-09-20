@@ -3,12 +3,9 @@ import os
 import struct
 import time
 import argparse
-import requests
 import ipaddress
 
-# Global variables for geolocation rate limiting and caching
-last_geo_time = 0.0
-geo_cache = {}  # Cache: IP → geo string
+from network_lookup import get_hostname, get_geolocation
 
 # Mapping protocol numbers to protocol names
 protocol_map = {
@@ -168,40 +165,6 @@ def parse_packet(raw_data):
     return packet
 
 
-# Function to resolve IP address to hostname
-def resolve_hostname(ip):
-    try:
-        hostname = socket.gethostbyaddr(ip)[0]
-        return hostname
-    except socket.herror:
-        return None  # No reverse DNS record
-    except socket.gaierror:
-        return None  # Invalid IP or DNS issue
-    except Exception as e:
-        print(f"Hostname lookup error for {ip}: {e}")
-        return None
-
-
-# Function to resolve Geolocation using ip-api.com
-def geolocate_ip(ip):
-    try:
-        response = requests.get(
-            f"http://ip-api.com/json/{ip}?fields=country,city,org,query",
-            timeout=5
-        )
-
-        if response.status_code == 200:
-            data = response.json()
-            country = data.get('country', '')
-            city = data.get('city', '')
-            org = data.get('org', '')
-            return f"{city}, {country} ({org})"
-        else:
-            return "Geo lookup failed"
-
-    except requests.RequestException:
-        return "Geo lookup error"
-
 
 # Function to check if an IP is public (to avoid local network spam)
 def is_public_ip(ip):
@@ -333,20 +296,8 @@ def main():
                 continue
 
             # Hostname resolution
-            dst_hostname = resolve_hostname(dst_addr)
-
-            # Geolocation resolution with rate limiting + caching
-            if dst_addr in geo_cache:
-                dst_geo = geo_cache[dst_addr]
-            else:
-                current_time = time.time()
-
-                if current_time - last_geo_time >= 2.0:
-                    dst_geo = geolocate_ip(dst_addr)
-                    geo_cache[dst_addr] = dst_geo
-                    last_geo_time = current_time
-                else:
-                    dst_geo = "Geo rate-limited"
+            dst_hostname = get_hostname(dst_addr)
+            dst_geo = get_geolocation(dst_addr)
 
             # Build display string with IP, hostname, and geo info
             if dst_hostname:
