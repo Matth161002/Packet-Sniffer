@@ -1,3 +1,4 @@
+import ipaddress
 import socket
 import time
 import threading
@@ -83,6 +84,15 @@ def get_hostname(ip):
 def get_geolocation(ip):
     """Return cached geolocation data or perform a rate-limited lookup."""
     global last_geo_time
+
+    try:
+        address = ipaddress.ip_address(ip)
+
+        if not address.is_global:
+            return "Local/private network"
+
+    except ValueError:
+        return "Unknown"
 
     with geo_lock:
         if ip in geo_cache:
