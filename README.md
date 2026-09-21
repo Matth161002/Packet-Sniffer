@@ -10,8 +10,10 @@ It captures IPv4 traffic, parses TCP, UDP and ICMP packets, and presents the res
 
 - IPv4 packet capture using raw sockets
 - TCP, UDP and ICMP packet parsing
+- Network flow aggregation
+- Bidirectional flow tracking
+- Packet, byte and duration statistics
 - Live desktop monitoring interface
-- Traffic statistics
 - Basic security event detection
 - Possible port-scan detection
 - High-traffic detection
@@ -23,9 +25,10 @@ It captures IPv4 traffic, parses TCP, UDP and ICMP packets, and presents the res
 
 ## GUI
 
-The application currently has three main views:
+The application currently has four main views:
 
 - **Packets** - live traffic with repeated traffic grouped together
+- **Flows** - aggregated bidirectional network flows with packet counts, bytes and duration
 - **Security Events** - potentially unusual activity detected during capture
 - **Statistics** - a summary of the traffic being observed
 
@@ -97,7 +100,7 @@ Packet-Sniffer/
 
 The project is still being developed.
 
-The application now includes network flow aggregation, allowing traffic to be viewed as complete bidirectional flows rather than only as individual packets.
+The application now combines packet capture, parsing, traffic analysis, security event detection and network flow aggregation in one desktop tool.
 
 Further development will focus on:
 
