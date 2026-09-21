@@ -25,7 +25,7 @@ class PacketCapture:
         self.thread = None
         self.sniffer = None
 
-    def start(self, active_ip):
+    def start(self, active_ip, session_id=0):
         """Start packet capture in a background thread."""
         if self.running:
             return
@@ -34,7 +34,7 @@ class PacketCapture:
 
         self.thread = threading.Thread(
             target=self._capture_loop,
-            args=(active_ip,),
+            args=(active_ip, session_id),
             daemon=True
         )
 
@@ -74,7 +74,7 @@ class PacketCapture:
 
         self.thread = None
 
-    def _capture_loop(self, active_ip):
+    def _capture_loop(self, active_ip, session_id):
         """Capture packets until the worker is stopped."""
         try:
             self.sniffer = socket.socket(
@@ -116,7 +116,8 @@ class PacketCapture:
                     if self.running:
                         self.packet_callback(
                             None,
-                            "Packet capture socket error."
+                            "Packet capture socket error.",
+                            session_id
                         )
 
                     break
@@ -143,13 +144,15 @@ class PacketCapture:
 
                 self.packet_callback(
                     packet,
-                    None
+                    None,
+                    session_id
                 )
 
         except OSError as error:
             self.packet_callback(
                 None,
-                f"Unable to start packet capture: {error}"
+                f"Unable to start packet capture: {error}",
+                session_id
             )
 
         finally:
