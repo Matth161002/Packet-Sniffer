@@ -6,6 +6,8 @@ This project started as a simple packet sniffer and has gradually grown into a d
 
 It captures IPv4 traffic, parses TCP, UDP and ICMP packets, and presents the results through a live GUI.
 
+![Packet-Sniffer Security Monitor](docs/gui-screenshot.svg)
+
 ## Features
 
 - IPv4 packet capture using raw sockets
@@ -54,7 +56,14 @@ cd Packet-Sniffer
 pip install -r requirements.txt
 ```
 
-Raw packet capture on Windows requires administrator privileges.
+For a clean installation, a virtual environment can also be created:
+
+```powershell
+py -m venv .venv
+.\.venv\Scripts\python.exe -m pip install -r requirements.txt
+```
+
+Raw packet capture on Windows requires administrator privileges. Run the application from an elevated PowerShell window.
 
 ## Usage
 
@@ -62,6 +71,12 @@ Start the desktop application with:
 
 ```powershell
 python security_gui.py
+```
+
+If you created a virtual environment without activating it, use:
+
+```powershell
+.\.venv\Scripts\python.exe security_gui.py
 ```
 
 The original command-line sniffer can also be run directly:
