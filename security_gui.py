@@ -1,4 +1,3 @@
-import ipaddress
 import queue
 import tkinter as tk
 
@@ -11,8 +10,9 @@ from Packet_Sniffer import (
     protocol_map
 )
 
-from packet_capture import PacketCapture
+from flow_aggregation import FlowAggregator
 from network_lookup import NetworkLookupWorker
+from packet_capture import PacketCapture
 from traffic_analysis import TrafficAnalyzer
 
 
@@ -23,15 +23,18 @@ class SecurityGUI:
         """Initialise the application."""
         self.root = root
         self.root.title("Packet-Sniffer Security Monitor")
-        self.root.geometry("1200x750")
-        self.root.minsize(950, 600)
+        self.root.geometry("1350x800")
+        self.root.minsize(1000, 650)
 
         self.event_queue = queue.Queue()
+
+        self.capture_session = 0
 
         self.packet_count = 0
         self.alert_count = 0
 
         self.analyzer = TrafficAnalyzer()
+        self.flow_aggregator = FlowAggregator()
         self.lookup_worker = NetworkLookupWorker()
 
         self.capture = PacketCapture(
@@ -44,6 +47,8 @@ class SecurityGUI:
         self.current_group_row = None
         self.current_group_start = None
         self.current_group_end = None
+
+        self.flow_rows = {}
 
         self.build_interface()
 
@@ -147,6 +152,16 @@ class SecurityGUI:
             side=tk.LEFT
         )
 
+        self.flow_label = ttk.Label(
+            status_frame,
+            text="Flows: 0"
+        )
+
+        self.flow_label.pack(
+            side=tk.LEFT,
+            padx=25
+        )
+
         self.notebook = ttk.Notebook(
             self.root
         )
@@ -159,6 +174,7 @@ class SecurityGUI:
         )
 
         self.build_packets_tab()
+        self.build_flows_tab()
         self.build_events_tab()
         self.build_statistics_tab()
 
@@ -212,8 +228,8 @@ class SecurityGUI:
             "source_port": 90,
             "destination_port": 110,
             "ttl": 50,
-            "hostname": 260,
-            "location": 250
+            "hostname": 250,
+            "location": 220
         }
 
         for column in columns:
@@ -261,6 +277,101 @@ class SecurityGUI:
             row=1,
             column=0,
             sticky="ew"
+        )
+
+        frame.rowconfigure(
+            0,
+            weight=1
+        )
+
+        frame.columnconfigure(
+            0,
+            weight=1
+        )
+
+    def build_flows_tab(self):
+        """Create the network flow table."""
+        frame = ttk.Frame(
+            self.notebook,
+            padding=5
+        )
+
+        self.notebook.add(
+            frame,
+            text="Flows"
+        )
+
+        columns = (
+            "source",
+            "destination",
+            "protocol",
+            "ports",
+            "packets",
+            "bytes",
+            "duration",
+            "direction"
+        )
+
+        self.flow_tree = ttk.Treeview(
+            frame,
+            columns=columns,
+            show="headings"
+        )
+
+        headings = {
+            "source": "Source",
+            "destination": "Destination",
+            "protocol": "Protocol",
+            "ports": "Ports",
+            "packets": "Packets",
+            "bytes": "Bytes",
+            "duration": "Duration",
+            "direction": "Packets by Direction"
+        }
+
+        widths = {
+            "source": 180,
+            "destination": 180,
+            "protocol": 90,
+            "ports": 150,
+            "packets": 80,
+            "bytes": 100,
+            "duration": 100,
+            "direction": 180
+        }
+
+        for column in columns:
+            self.flow_tree.heading(
+                column,
+                text=headings[column]
+            )
+
+            self.flow_tree.column(
+                column,
+                width=widths[column],
+                anchor=tk.W
+            )
+
+        scrollbar = ttk.Scrollbar(
+            frame,
+            orient=tk.VERTICAL,
+            command=self.flow_tree.yview
+        )
+
+        self.flow_tree.configure(
+            yscrollcommand=scrollbar.set
+        )
+
+        self.flow_tree.grid(
+            row=0,
+            column=0,
+            sticky="nsew"
+        )
+
+        scrollbar.grid(
+            row=0,
+            column=1,
+            sticky="ns"
         )
 
         frame.rowconfigure(
@@ -396,7 +507,10 @@ class SecurityGUI:
 
                 return
 
+            self.capture_session += 1
+
             self.analyzer = TrafficAnalyzer()
+            self.flow_aggregator = FlowAggregator()
 
             self.packet_count = 0
             self.alert_count = 0
@@ -406,8 +520,14 @@ class SecurityGUI:
             self.current_group_start = None
             self.current_group_end = None
 
+            self.flow_rows.clear()
+
             self.packet_tree.delete(
                 *self.packet_tree.get_children()
+            )
+
+            self.flow_tree.delete(
+                *self.flow_tree.get_children()
             )
 
             self.event_tree.delete(
@@ -417,7 +537,8 @@ class SecurityGUI:
             self.update_statistics()
 
             self.capture.start(
-                active_ip
+                active_ip,
+                session_id=self.capture_session
             )
 
             self.status_label.config(
@@ -456,20 +577,29 @@ class SecurityGUI:
 
     def clear_capture(self):
         """Stop capture and completely reset the current session."""
+        self.capture_session += 1
+
         self.capture.stop()
 
         self.packet_count = 0
         self.alert_count = 0
 
         self.analyzer = TrafficAnalyzer()
+        self.flow_aggregator = FlowAggregator()
 
         self.current_group = None
         self.current_group_row = None
         self.current_group_start = None
         self.current_group_end = None
 
+        self.flow_rows.clear()
+
         self.packet_tree.delete(
             *self.packet_tree.get_children()
+        )
+
+        self.flow_tree.delete(
+            *self.flow_tree.get_children()
         )
 
         self.event_tree.delete(
@@ -482,6 +612,10 @@ class SecurityGUI:
 
         self.alert_label.config(
             text="Security events: 0"
+        )
+
+        self.flow_label.config(
+            text="Flows: 0"
         )
 
         self.status_label.config(
@@ -498,13 +632,14 @@ class SecurityGUI:
 
         self.update_statistics()
 
-    def handle_packet(self, packet, error):
+    def handle_packet(self, packet, error, session_id):
         """Place a capture result onto the GUI event queue."""
         self.event_queue.put(
             (
                 "packet",
                 packet,
-                error
+                error,
+                session_id
             )
         )
 
@@ -512,20 +647,20 @@ class SecurityGUI:
         """Process background events on the GUI thread."""
         try:
             while True:
-                event_type, data, extra = (
-                    self.event_queue.get_nowait()
-                )
+                event = self.event_queue.get_nowait()
 
-                if event_type == "packet":
+                if event[0] == "packet":
                     self.process_capture_event(
-                        data,
-                        extra
+                        event[1],
+                        event[2],
+                        event[3]
                     )
 
-                elif event_type == "lookup":
+                elif event[0] == "lookup":
                     self.process_lookup_event(
-                        data,
-                        extra
+                        event[1],
+                        event[2],
+                        event[3]
                     )
 
         except queue.Empty:
@@ -536,8 +671,16 @@ class SecurityGUI:
             self.process_events
         )
 
-    def process_capture_event(self, packet, error):
+    def process_capture_event(
+        self,
+        packet,
+        error,
+        session_id
+    ):
         """Handle a captured packet or capture error."""
+        if session_id != self.capture_session:
+            return
+
         if error:
             self.status_label.config(
                 text=f"Status: {error}"
@@ -564,13 +707,6 @@ class SecurityGUI:
 
     def process_packet(self, packet):
         """Analyse and display a captured packet."""
-        destination_ip = packet["destination_ip"]
-
-        if not self.is_public_ip(
-            destination_ip
-        ):
-            return
-
         self.packet_count += 1
 
         security_events = self.analyzer.analyse_packet(
@@ -581,6 +717,14 @@ class SecurityGUI:
             self.display_security_event(
                 event
             )
+
+        flow = self.flow_aggregator.update(
+            packet
+        )
+
+        self.update_flow_row(
+            flow
+        )
 
         transport = packet["transport"]
 
@@ -605,7 +749,7 @@ class SecurityGUI:
 
         group_key = (
             packet["source_ip"],
-            destination_ip,
+            packet["destination_ip"],
             protocol_name,
             source_port,
             destination_port,
@@ -653,7 +797,7 @@ class SecurityGUI:
                 values=(
                     str(self.packet_count),
                     packet["source_ip"],
-                    destination_ip,
+                    packet["destination_ip"],
                     protocol_name,
                     source_port,
                     destination_port,
@@ -666,14 +810,17 @@ class SecurityGUI:
             self.current_group_row = item_id
 
             future, _ = self.lookup_worker.submit(
-                destination_ip
+                packet["destination_ip"]
             )
 
             future.add_done_callback(
-                lambda completed_future, row=item_id:
+                lambda completed_future,
+                row=item_id,
+                session_id=self.capture_session:
                 self.queue_lookup_result(
                     completed_future,
-                    row
+                    row,
+                    session_id
                 )
             )
 
@@ -681,7 +828,105 @@ class SecurityGUI:
             text=f"Packets: {self.packet_count}"
         )
 
+        self.flow_label.config(
+            text=(
+                f"Flows: "
+                f"{self.flow_aggregator.get_statistics()['total_flows']}"
+            )
+        )
+
         self.update_statistics()
+
+    def update_flow_row(self, flow):
+        """Insert or update a flow in the flow table."""
+        flow_key = (
+            flow.protocol,
+            flow.source_ip,
+            flow.destination_ip,
+            flow.source_port,
+            flow.destination_port
+        )
+
+        values = (
+            flow.source_ip,
+            flow.destination_ip,
+            protocol_map.get(
+                flow.protocol,
+                f"Unknown ({flow.protocol})"
+            ),
+            self.format_ports(
+                flow.source_port,
+                flow.destination_port
+            ),
+            flow.packet_count,
+            self.format_bytes(
+                flow.byte_count
+            ),
+            self.format_duration(
+                flow.duration
+            ),
+            (
+                f"{flow.forward_packets} forward / "
+                f"{flow.reverse_packets} reverse"
+            )
+        )
+
+        row_id = self.flow_rows.get(
+            flow_key
+        )
+
+        if row_id and self.flow_tree.exists(
+            row_id
+        ):
+            self.flow_tree.item(
+                row_id,
+                values=values
+            )
+
+        else:
+            row_id = self.flow_tree.insert(
+                "",
+                tk.END,
+                values=values
+            )
+
+            self.flow_rows[flow_key] = row_id
+
+        self.flow_tree.move(
+            row_id,
+            "",
+            0
+        )
+
+    @staticmethod
+    def format_ports(source_port, destination_port):
+        """Format a pair of transport ports."""
+        if (
+            source_port is None
+            or destination_port is None
+        ):
+            return "-"
+
+        return f"{source_port} -> {destination_port}"
+
+    @staticmethod
+    def format_bytes(byte_count):
+        """Format a byte count for display."""
+        if byte_count < 1024:
+            return f"{byte_count} B"
+
+        if byte_count < 1024 * 1024:
+            return f"{byte_count / 1024:.1f} KB"
+
+        return f"{byte_count / (1024 * 1024):.1f} MB"
+
+    @staticmethod
+    def format_duration(duration):
+        """Format a flow duration for display."""
+        if duration < 1:
+            return f"{duration * 1000:.0f} ms"
+
+        return f"{duration:.2f} s"
 
     @staticmethod
     def format_packet_range(start, end):
@@ -691,7 +936,12 @@ class SecurityGUI:
 
         return f"{start}-{end}"
 
-    def queue_lookup_result(self, future, item_id):
+    def queue_lookup_result(
+        self,
+        future,
+        item_id,
+        session_id
+    ):
         """Queue completed lookup data for the GUI thread."""
         try:
             result = future.result()
@@ -704,14 +954,21 @@ class SecurityGUI:
                 (
                     "lookup",
                     result,
-                    item_id
+                    item_id,
+                    session_id
                 )
             )
 
-    def process_lookup_event(self, result, item_id):
+    def process_lookup_event(
+        self,
+        result,
+        item_id,
+        session_id
+    ):
         """Update a packet row with network metadata."""
-        # The row may have been removed by Clear Capture while
-        # the background lookup was still running.
+        if session_id != self.capture_session:
+            return
+
         if not self.packet_tree.exists(
             item_id
         ):
@@ -766,11 +1023,14 @@ class SecurityGUI:
     def update_statistics(self):
         """Refresh the traffic statistics display."""
         statistics = self.analyzer.get_statistics()
+        flow_statistics = self.flow_aggregator.get_statistics()
 
         lines = [
             "TRAFFIC SUMMARY",
             "",
             f"Total packets: {statistics['total_packets']}",
+            f"Total flows: {flow_statistics['total_flows']}",
+            f"Total bytes: {self.format_bytes(flow_statistics['total_bytes'])}",
             "",
             "PROTOCOLS",
             ""
@@ -845,22 +1105,6 @@ class SecurityGUI:
         )
 
     @staticmethod
-    def is_public_ip(ip):
-        """Determine whether an IP address is publicly routable."""
-        try:
-            address = ipaddress.ip_address(ip)
-
-            return not (
-                address.is_private
-                or address.is_loopback
-                or address.is_multicast
-                or address.is_reserved
-            )
-
-        except ValueError:
-            return False
-
-    @staticmethod
     def current_time():
         """Return the current local time."""
         return datetime.now().strftime(
@@ -869,6 +1113,7 @@ class SecurityGUI:
 
     def close_application(self):
         """Stop capture and background workers before closing."""
+        self.capture_session += 1
         self.capture.stop()
         self.lookup_worker.shutdown()
         self.root.destroy()
