@@ -45,11 +45,8 @@ These detections are indicators rather than proof of malicious activity. The det
 
 Clone the repository and install the required dependencies:
 
-<<<<<<< HEAD
-=======
 ```powershell
->>>>>>> 4eb2de3 (docs: improve project README)
-git clone <repository-url>
+git clone https://github.com/Matth161002/Packet-Sniffer.git
 cd Packet-Sniffer
 pip install -r requirements.txt
 ```
@@ -117,8 +114,4 @@ See [SECURITY.md](SECURITY.md) for further information.
 
 ## Licence
 
-<<<<<<< HEAD
-MIT License.
-=======
 This project is licensed under the MIT License. See [LICENSE](LICENSE) for details.
->>>>>>> 4eb2de3 (docs: improve project README)
