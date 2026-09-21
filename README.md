@@ -6,7 +6,7 @@ This project started as a simple packet sniffer and has gradually grown into a d
 
 It captures IPv4 traffic, parses TCP, UDP and ICMP packets, and presents the results through a live GUI.
 
-![Packet-Sniffer Security Monitor](docs/gui-screenshot.svg)
+![Packet-Sniffer Security Monitor](docs/gui-screenshot-v2.svg)
 
 ## Features
 
