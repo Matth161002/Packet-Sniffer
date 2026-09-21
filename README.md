@@ -1,10 +1,10 @@
 # Packet-Sniffer
 
-**A Python network packet sniffer that has evolved into a small network security monitoring application.**
+**A Python packet sniffer and small network security monitoring tool.**
 
-The project captures IPv4 traffic, parses TCP, UDP and ICMP packets, analyses traffic patterns and displays the results through a desktop GUI.
+This project started as a simple packet sniffer and has gradually grown into a desktop application for looking at network traffic, spotting basic patterns and investigating activity that may be worth a closer look.
 
-The main goal is to make network traffic easier to understand and provide basic indicators of potentially unusual activity.
+It captures IPv4 traffic, parses TCP, UDP and ICMP packets, and presents the results through a live GUI.
 
 ## Features
 
@@ -23,23 +23,23 @@ The main goal is to make network traffic easier to understand and provide basic 
 
 ## GUI
 
-The application currently provides three main views:
+The application currently has three main views:
 
-- **Packets** - live captured traffic with repeated traffic grouped together
+- **Packets** - live traffic with repeated traffic grouped together
 - **Security Events** - potentially unusual activity detected during capture
-- **Statistics** - basic information about the traffic being observed
+- **Statistics** - a summary of the traffic being observed
 
-The capture can be started, stopped and cleared without restarting the application.
+Captures can be started, stopped and cleared without restarting the application.
 
 ## Security Events
 
-The current detection system looks for simple patterns that may be worth investigating, including:
+The current detection system looks for a few simple patterns that may be worth investigating:
 
 - High traffic volume
 - Possible port scanning activity
 - Connections to selected unusual destination ports
 
-These detections are indicators rather than proof of malicious activity. The detection system is still fairly basic and will be expanded as the project develops.
+These are indicators rather than proof of malicious activity. The detection logic is still fairly basic and will be expanded as the project develops.
 
 ## Installation
 
@@ -95,7 +95,7 @@ Packet-Sniffer/
 
 The project is still being developed.
 
-The next major step is **network flow aggregation**, moving the application away from treating every packet as a separate item and towards displaying complete network connections and flows.
+The next major step is **network flow aggregation**, so the application can show complete connections and flows rather than treating every packet as a separate item.
 
 Planned areas include:
 
