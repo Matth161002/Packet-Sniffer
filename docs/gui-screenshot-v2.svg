@@ -1,0 +1,62 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1081" height="730" viewBox="0 0 1081 730">
+  <rect width="1081" height="730" fill="#f5f5f5"/>
+  <rect x="0" y="0" width="1081" height="34" fill="#ffffff" stroke="#d0d0d0"/>
+  <text x="14" y="22" font-family="Segoe UI, Arial" font-size="13" fill="#222">Packet-Sniffer Security Monitor</text>
+  <rect x="0" y="34" width="1081" height="58" fill="#ffffff"/>
+  <text x="12" y="70" font-family="Segoe UI, Arial" font-size="26" font-weight="700" fill="#111">Packet-Sniffer Security Monitor</text>
+
+  <rect x="824" y="46" width="77" height="24" rx="3" fill="#ffffff" stroke="#c7c7c7"/>
+  <text x="833" y="62" font-family="Segoe UI, Arial" font-size="11" fill="#111">Start Capture</text>
+
+  <rect x="908" y="46" width="78" height="24" rx="3" fill="#f7f7f7" stroke="#dedede"/>
+  <text x="917" y="62" font-family="Segoe UI, Arial" font-size="11" fill="#999">Stop Capture</text>
+
+  <rect x="992" y="46" width="78" height="24" rx="3" fill="#ffffff" stroke="#c7c7c7"/>
+  <text x="999" y="62" font-family="Segoe UI, Arial" font-size="11" fill="#111">Clear Capture</text>
+
+  <text x="10" y="99" font-family="Segoe UI, Arial" font-size="12" fill="#222">Status: Stopped</text>
+  <text x="118" y="99" font-family="Segoe UI, Arial" font-size="12" fill="#222">Packets: 0</text>
+  <text x="201" y="99" font-family="Segoe UI, Arial" font-size="12" fill="#222">Security events: 0</text>
+  <text x="314" y="99" font-family="Segoe UI, Arial" font-size="12" fill="#222">Flows: 0</text>
+
+  <rect x="8" y="113" width="1048" height="24" fill="#ffffff" stroke="#d0d0d0"/>
+  <rect x="9" y="114" width="48" height="22" fill="#e8f0fb" stroke="#b8c9e6"/>
+  <text x="18" y="129" font-family="Segoe UI, Arial" font-size="11" fill="#111">Packets</text>
+  <text x="66" y="129" font-family="Segoe UI, Arial" font-size="11" fill="#222">Flows</text>
+  <text x="104" y="129" font-family="Segoe UI, Arial" font-size="11" fill="#222">Security Events</text>
+  <text x="196" y="129" font-family="Segoe UI, Arial" font-size="11" fill="#222">Statistics</text>
+
+  <rect x="14" y="141" width="1034" height="559" fill="#ffffff" stroke="#bcbcbc"/>
+
+  <g font-family="Segoe UI, Arial" font-size="12" fill="#222">
+    <text x="28" y="159">Packets</text>
+    <text x="120" y="159">Source</text>
+    <text x="230" y="159">Destination</text>
+    <text x="333" y="159">Protocol</text>
+    <text x="401" y="159">Source Port</text>
+    <text x="483" y="159">Destination Port</text>
+    <text x="573" y="159">TTL</text>
+    <text x="691" y="159">Hostname</text>
+    <text x="936" y="159">Location</text>
+  </g>
+
+  <line x1="14" y1="166" x2="1048" y2="166" stroke="#d4d4d4"/>
+  <line x1="82" y1="141" x2="82" y2="700" stroke="#e3e3e3"/>
+  <line x1="199" y1="141" x2="199" y2="700" stroke="#e3e3e3"/>
+  <line x1="319" y1="141" x2="319" y2="700" stroke="#e3e3e3"/>
+  <line x1="390" y1="141" x2="390" y2="700" stroke="#e3e3e3"/>
+  <line x1="471" y1="141" x2="471" y2="700" stroke="#e3e3e3"/>
+  <line x1="568" y1="141" x2="568" y2="700" stroke="#e3e3e3"/>
+  <line x1="603" y1="141" x2="603" y2="700" stroke="#e3e3e3"/>
+  <line x1="837" y1="141" x2="837" y2="700" stroke="#e3e3e3"/>
+
+  <rect x="1048" y="141" width="13" height="559" fill="#f1f1f1"/>
+  <polygon points="1054,149 1059,156 1049,156" fill="#888"/>
+  <polygon points="1049,692 1059,692 1054,699" fill="#888"/>
+
+  <rect x="8" y="700" width="1048" height="14" fill="#f1f1f1"/>
+  <polygon points="20,707 27,703 27,711" fill="#888"/>
+  <polygon points="1042,703 1049,707 1042,711" fill="#888"/>
+
+  <text x="20" y="689" font-family="Segoe UI, Arial" font-size="11" fill="#777">Live IPv4 packet monitoring</text>
+</svg>
