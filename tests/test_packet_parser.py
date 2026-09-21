@@ -201,7 +201,8 @@ def test_parse_icmp_packet():
     assert packet["destination_ip"] == '8.8.8.8'
     assert packet["protocol"] == 1
 
-    assert packet["transport"]["type"] == 8
+    assert packet["transport"]["type"] == "ICMP"
+    assert packet["transport"]["type_code"] == 8
     assert packet["transport"]["code"] == 0
     assert packet["transport"]["checksum"] == 0
 
