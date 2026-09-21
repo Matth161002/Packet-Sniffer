@@ -85,23 +85,23 @@ Packet-Sniffer/
 ├── packet_capture.py
 ├── network_lookup.py
 ├── traffic_analysis.py
+├── flow_aggregation.py
 ├── security_gui.py
 └── tests/
     ├── test_packet_parser.py
-    └── test_traffic_analysis.py
+    ├── test_traffic_analysis.py
+    └── test_flow_aggregation.py
 ```
 
 ## Development
 
 The project is still being developed.
 
-The next major step is **network flow aggregation**, so the application can show complete connections and flows rather than treating every packet as a separate item.
+The application now includes network flow aggregation, allowing traffic to be viewed as complete bidirectional flows rather than only as individual packets.
 
-Planned areas include:
+Further development will focus on:
 
-- Network flow tracking
 - Improved traffic detection
-- TCP connection analysis
 - Filtering and investigation
 - Exporting captured data
 - Better traffic visualisation
